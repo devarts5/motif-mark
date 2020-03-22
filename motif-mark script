@@ -1,0 +1,308 @@
+'''###  Motif-Mark ###'''
+#!/usr/bin/env python
+
+'''
+A program to convert sequences motifs to a visual representation of the locations of motifs in sequences.  This script can take DNA or RNA sequence input.  It requires
+a fasta file and a text file with the motifs.  To start the program enter your files along with starting the program -s <directory path>/<sequence_file>.fast -m <directory path>/<motif_file.text
+Your motif file should look something like the following:
+
+AACTGYat
+YYYSYYN
+AAaaggcR
+ccgtgtca
+
+The general strategy:
+• Create a repository in your GitHub profile called motif-mark
+• Write a python script to visualize motifs on sequences
+• Turn in your code and a figure for the data Leslie will provide on
+Canvas
+• Minimum requirements:
+• Python3 compatible code
+• Use argparse
+• Input FASTA file and motifs file
+• Output single figure
+• Multiple sequences
+• Multiple motifs
+• Ambiguous motif handling
+• svg output
+• Key/labeling
+'''
+'''Install py cairo and set up'''
+conda install -c conda-forge pycairo
+import cairo
+
+context.set_line_width(1)
+context.move_to(50,25)
+context.line_to(intron1+exon+intron2,25)
+context.stroke()
+surface.finish()
+
+'''Import other necessary libraries'''
+import re
+import argparse
+import sys
+import math
+import numpy as np
+import matplotlib.cm as cm
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+from re import finditer
+
+'''variables'''
+motif_dict = {}
+genes = {}
+seqlist = [line.rstrip('\n') for line in open(seqfile)]
+exon_list = []
+motif_location_dict = {}
+motif_positions = {}
+color_scheme = []
+sequences = []
+
+'''######Functions########'''
+# The following set the stand alone functions
+
+def getargs():
+'''A function to input sequence file, motif sequence,  returns these as arguments, then variable'''
+  parser = argparse.ArgumentParser(description = 'input')
+  parser.add_argument('-s', '--seqfile', type= str, required = True, help= "Enter -s or --seqfile followed by your absolute fasta or other file path")
+  parser.add_argument('-m', '--motifs', type= str, help= "Enter motifs.")
+
+  return parser.parse_args()
+# Set variables for Arg items
+seqfile = args.seqfile
+motifs = args.motifs
+
+'''A function to create motif dictionary with numerical key'''
+def motif_dict_maker(motifs_list):
+    count = 0
+    for item in motifs_list:
+        count += 1
+        motif_dict[item]= count
+    return motif_dict
+
+# Unit test for motif_dict_maker
+#motifs_list = [line.rstrip('\n') for line in open(m)]
+#motif_dicts = motif_dict_maker(motifs_list)
+#print(motifs_list)
+
+'''A Function to translate a IUPAC Motif lists into amino acids.  This is set to handle  DNA motifs, with lower or upper case [exons] and
+lower or upper case IUPAC variable nucleotide symbols. This function turns a DNA motif-list, upper or lower case into a list of IUPAC
+equivalents in regex ready form that can be compared to a DNA or an RNA sequence'''
+def motif_iupac_translater(motifs_list):
+    search_motifs =[]
+    for string in motifs_list:
+        string = string.replace("A", "a")
+        string = string.replace("a","[Aa]")
+        string = string.replace("G","g")
+        string = string.replace("g","[Gg]")
+        string = string.replace("C","c")
+        string = string.replace("c","[Cc]")
+        string = string.replace("T","t")
+        string = string.replace("t","[TtUu]")
+        string = string.replace("R","r")
+        string = string.replace("r","[AaGg]")
+        string = string.replace("Y","y")
+        string = string.replace("y","[CcTtUu]")
+        string = string.replace("S","s")
+        string = string.replace("s","[GgCc]")
+        string = string.replace("W","w")
+        string = string.replace("w","[TtUu]")
+        string = string.replace("K","k")
+        string = string.replace("k","[GgTtUu]")
+        string = string.replace("S","s")
+        string = string.replace("s","[GgCc]")
+        string = string.replace("W","w]")
+        string = string.replace("w","[AaTtUu]")
+        string = string.replace("M","m")
+        string = string.replace("m","[AaCc]")
+        string = string.replace("B","b")
+        string = string.replace("b","[GgCcTtUu]")
+        string = string.replace("D","d")
+        string = string.replace("d","[AaGgTtUu]")
+        string = string.replace("H","h")
+        string = string.replace("h","[AaCcTtUu]")
+        string = string.replace("V","v")
+        string = string.replace("v","[AaCcGg]")
+        string = string.replace("N","n")
+        string = string.replace("n","[GgCcAaTtUu]")
+
+        search_motifs.append(string)
+
+    return(search_motifs)
+
+#Unit Tests
+#string = "GCYaA"
+#motifs_list = [line.rstrip('\n') for line in open("motif_marker_motifs.txt")]
+
+'''A function to capture genes from a fasta file as a dictionary with gene_id as key and sequence as value'''
+def gene_capture(seqfile):# the seqfile from arg parse
+    for line in seqfile:
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith(">"): #captures IDs
+            seq_name = line[1:]
+            if seq_name not in genes:#genes is defined as genes ={} in variables
+                genes[seq_name] = []
+            continue
+        sequence = line
+        genes[seq_name].append(sequence) #captures sequences
+
+    for key in genes:#turns value (sequence lines in a list) into value(one string of sequences)
+        new_value = "".join(genes[key])
+        genes[key] = new_value #reassigns value
+    return(genes)
+
+'''A function to find motif locations. Takes an input FASTA file and returns, by referencing the motifs_list, the coordinate positions for each motif in the FASTA file.
+def find_motif_locs(motifs_list):
+	for motif in motif_list:
+		# initiate a new key into the dict key for the current motif make the value a blank list
+		coords_dict[motif] = []
+		startpos = re.finditer(regex_dict[motif], seq)
+		for match in startpos:
+			coords_dict[motif].append(match.start())
+					#print(match.start(), end)
+					#print(coords_dict)
+	return(coords_dict)'''
+
+'''Another possibly more functional motif_location finder.  Finds overlapping motifs.'''
+def Motif_Position(search_motifs,sequences):
+    for item in search_motifs:
+#    regexmotif =  "rf'"+ "(?=" + {item} + ")'"
+        string = sequences[0]
+        # print(regexmotif)
+        # print(string)
+        # p = re.compile(string)
+    for match in re.finditer("rf'(?={item})'",string) #The problem, this is returning boolens on which .span() and .group() do not work
+        group = match.group()
+        motif_positions[group] = append.(match.span())
+    return(motif_positions)
+
+#A function to set drawing parameters in pycairo'''
+def motif_draw(motif_positions, Motifs,genes):
+
+    no_of_graphs = len(search_motifs) # Number of graphs to be drawn
+    max_size = 0
+    for motif in search_motifs:
+    # Get Motif color schemes for legend:
+        motif_color = {}
+            for j in range(0,len(search_motifs[0])):
+                color = color_scheme[j]
+                r = int(color[0:2],16)/256
+                g = int(color[2:4],16)/256
+                b = int(colorl[4:],16)/256
+            motif_color[Motifs[0][j]]=[r,g,b]
+
+        if color_scheme == '':
+            col = 1
+        for motif in Motifs[0]:
+            r = 0.2+(col/5)
+            g = 0.8-(col/5)
+            b = 0.2+(col/10)
+            motif_color[motif]=[r,g,b]
+            col = col+1
+
+        # Start Graph drawing
+        surface = cairo.SVGSurface("./motif_marker_graphs.svg", max_size+45, (no_of_graphs*60)+100)
+        context = cairo.Context(surface)
+        #Make Title
+        title = "Motif and Exon Locations"
+        context.set_font_size(10)
+        context.move_to(5,35)
+        context.show_text(title)
+
+        for i in range(0,len(search_motifs)):
+            context.set_line_width(1)
+
+        # Add Gene name before graph
+        context.set_font_size(10)
+        context.set_source_rgb(0, 0, 0)
+        context.select_font_face("Times_New_Roman", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        context.move_to(5,0*(i+1)+50)  # x,y coords; spacing graphs by 20 pixels
+        context.show_text(genes[seq_name][0].seq_name)
+
+        # Draw Line to represent Sequence
+        context.move_to(35,20*(i+1)+50) # x,y coords; spacing graphs by 20 pixels
+        context.line_to(len(search_motifs[i][0]))+35,20*(i+1)+50) # Drawing line length of sequence
+        context.stroke()
+
+        # Draw Rectangle to represent Exon
+        exon_coords = search_motifs[i][0].exon_list(search_motifs[i][0])  # Get coordinates for the exon in the sequence
+        context.rectangle(exon_coords[0]+35,(20*(i+1)+50)-10,exon_coords[1]-exon_coords[0],18)       # x,y top corner, followed by width, height of rec.
+        context.fill()
+
+        # Add Motifs as small rectangles in appropriate locs
+        col = 1
+        for key in search_results[i][1].keys():
+            context.set_source_rgb(motif_color[key][0],motif_color[key][1],motif_color[key][2])
+            mot_width = key.count('[')
+            for loc in search_results[i][1][key]:
+                if type(loc) == int:
+                    context.rectangle(loc+35,(20*(i+1)+50)-10,mot_width,20)
+                    context.fill()
+            col = col+1
+
+    # Draw legend
+    context.move_to(10,(no_of_graphs*50))
+    context.set_source_rgb(0, 0, 0)
+    context.show_text("Key")
+    context.select_font_face("Courier", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+    for i in range(0,len(Motifs[0])):
+        context.set_source_rgb(motif_color[Motifs[0][i]][0],motif_color[Motifs[0][i]][1],motif_color[Motifs[0][i]][2])
+        context.rectangle(10,(no_of_graphs*50)+((i+1)*15),5,10)
+        context.fill()
+
+        context.move_to(20,(no_of_graphs*50)+((i+1)*15)+7)
+        context.set_source_rgb(0, 0, 0)
+        context.show_text(search_results[0][1][Motifs[0][i]][-1])
+        context.move_to(10,(no_of_graphs*50)+((i+1)*15))
+
+    surface.finish()
+
+''' function to find locations of Exons'''
+def exon_locator(seqfile):
+	for line in open(seqfile,'r'):
+		if ">" not in line:
+			exon = re.search('[A-Z]+', line)# Searches for exons as capitalized characters not in fasta_headers
+			if exon != None: #exludes lines without exons
+				exon_list.append(exon.span()) #adds exons to list
+            #print(exon.span())
+            #print(exonpos_list)
+	return(exon_list)
+#Unit Tests
+#exon_list = get_exons(seqfile)
+#print(exon_list)
+
+'''#####Main Code######'''
+args = get_arguments() # runs get_args function
+# Set variables for Arg items
+seqfile = args.seqfile
+motifs = args.motifs
+
+motifs_list = [line.rstrip('\n') for line in open(motifs)]# creates motifs_list
+seqlist = [line.rstrip('\n') for line in open(seqfile)]#creates seqlist
+
+With open(motifs,seqfile):
+    genes = gene_capture(seqfile)#runs gene capture
+    for key in genes:#grabs sequence values from genes, makes a list called sequences
+        value = genes[key]
+        sequences.append(value)
+
+        for item in seqfile:# makes list of gene i.d. lines
+      #separate out ID lines
+            r = re.compile(r'>\w*\s\w*:\w*-\w*\s.*')
+            s = r.match
+            gene_ids = list(filter(r.match,seqlist))
+
+
+    exon_list = exon_locator(seqfile)
+    search_motifs = motif_iupac_translater(motifs_list) #runs translator, gets search_motifs
+
+    motif_positions = Motif_Position(search_motifs,sequences) #runs motif location finditer
+
+    seqfile.close()
+    motif.close()
+
+# Call function to draw motif graphs:
+motif_draw(motif_positions,motifs,genes)#runs motif_drawing
