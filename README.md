@@ -21,3 +21,5 @@ YYYSYYN
 AAaaggcR
 ccgtgtca
 
+Example Image.
+![Example Motif Marker Output]("C:\Users\david\OneDrive\Documents\Winter_Genomics_2020\Motif_marker_Results.svg")
