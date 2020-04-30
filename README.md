@@ -20,5 +20,5 @@ AAaaggcR
 
 ccgtgtca
 
-Your resulting image will look something like this.
+Your resulting image will look something like this.  In this case, one of the requested motifs is not found in the sequences.
 ![Example Motif Marker Output](https://github.com/devarts5/motif-mark/blob/master/Motif_marker_Results.svg)
