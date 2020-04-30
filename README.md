@@ -13,9 +13,12 @@ Start program, including entering arg parse for fasta file and motifs.text file 
 Your motif text file should look something like the following:
 
 AACTGYat
+
 YYYSYYN
+
 AAaaggcR
+
 ccgtgtca
 
-Example Image.
+Your resulting image will look something like this.
 ![Example Motif Marker Output](https://github.com/devarts5/motif-mark/blob/master/Motif_marker_Results.svg)
