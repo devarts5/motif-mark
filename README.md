@@ -22,4 +22,4 @@ AAaaggcR
 ccgtgtca
 
 Example Image.
-![Example Motif Marker Output]("C:\Users\david\OneDrive\Documents\Winter_Genomics_2020\Motif_marker_Results.svg")
+![Example Motif Marker Output](https://github.com/devarts5/motif-mark/blob/master/Motif_marker_Results.svg)
